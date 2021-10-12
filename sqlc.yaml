@@ -1,0 +1,7 @@
+version: 1
+packages:
+  - path: "db/model"
+    name: "model"
+    engine: "postgresql"
+    schema: "db/migrations/"
+    queries: "db/queries/"

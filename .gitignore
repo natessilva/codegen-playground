@@ -1,0 +1,8 @@
+node_modules/
+pkg/*/server_gen.go
+db/docker/data
+db/docker/test-data
+db/docker/test.tar
+client/src/lib/*/client_gen.ts
+/gen
+/server

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+db_name="db"
+
+if ! [ -z "$TEST" ]; then
+  db_name="db-test"
+fi
+
+docker exec \
+  -it \
+  ${db_name} \
+  psql -U codegen \
+  $@

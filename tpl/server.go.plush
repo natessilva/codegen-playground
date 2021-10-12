@@ -1,0 +1,39 @@
+// Code generated - DO NOT EDIT.
+
+package <%= name %>
+
+import (
+	"context"
+	"net/http"
+
+	"codegen/app/pkg/apimux"
+)
+<%= for (service) in definition.Services { %>
+type <%= service.Name %> interface {<%= for (method) in service.Methods { %>
+	<%= method.Name %>(context.Context, <%= method.Input %>) (<%= method.Output %>, error)<% } %>
+}<% } %>
+<%= for (service) in definition.Services { %>
+type <%= camelize_down(service.Name) %>Server struct {
+	<%= camelize_down(service.Name) %> <%= service.Name %>
+}
+
+// Register the implementation of <%= service.Name %> with the apimux Server.
+func Register<%= service.Name %>(server *apimux.Server, <%= camelize_down(service.Name) %> <%= service.Name %>) {
+	handler := &<%= camelize_down(service.Name) %>Server{
+		<%= camelize_down(service.Name) %>: <%= camelize_down(service.Name) %>,
+	}
+	<%= for (method) in service.Methods { %>
+	server.Register("<%= service.Name %>", "<%= method.Name %>", handler.handle<%= method.Name %>)<% } %>
+}
+<%= for (method) in service.Methods { %>
+func (s *<%= camelize_down(service.Name) %>Server) handle<%= method.Name %>(w http.ResponseWriter, r *http.Request) {
+	var input <%= method.Input %>
+	apimux.DecodeEncode(w, r, &input, func() (interface{}, error) {
+		return s.<%= camelize_down(service.Name) %>.<%= method.Name %>(r.Context(), input)
+	})
+}
+<% } %><% } %><%= for (object) in definition.Structs { %>
+type <%= object.Name %> struct {<%= for (field) in object.Fields { %>
+	<%= field.Name %> <%= if (field.IsSlice == true) { %>[]<% } %><%= field.Type %> `json:"<%= camelize_down(field.Name) %>"`<% } %>
+}
+<% } %>

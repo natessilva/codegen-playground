@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+db_name="db"
+
+if ! [ -z "$TEST" ]; then
+  db_name="db-test"
+fi
+
+docker run \
+  -it \
+  -e DATABASE_URL="postgres://codegen:codegen@${db_name}:5432/codegen?sslmode=disable" \
+  --network codegen \
+  --rm \
+   -v "$(pwd)/db:/db" \
+  amacneil/dbmate \
+  --no-dump-schema \
+  --wait \
+  $@

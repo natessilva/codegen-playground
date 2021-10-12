@@ -1,0 +1,20 @@
+// Code generated - DO NOT EDIT.
+
+import { getCaller } from "../fetch";
+<%= for (service) in definition.Services { %> 
+export class <%= service.Name %> {
+  constructor(private readonly url: string, private readonly token: string) {}
+
+  private readonly caller = getCaller(this.url, "<%= name %>", "<%= service.Name %>", this.token);
+ 	<%= for (method) in service.Methods { %>
+	<%= camelize_down(method.Name) %> = async (input:<%= method.Input %>):Promise<<%= method.Output %>> =>
+	  this.caller("<%= method.Name %>", input);
+	<% } %>
+}
+<% } %>
+
+<%= for (object) in definition.Structs { %>
+export type <%= object.Name %> = {<%= for (field) in object.Fields { %>
+	<%= camelize_down(field.Name) %>:<%= json_type(field.Type, field.IsNumeric) %><%= if (field.IsSlice == true) { %>[]<% } %><% } %>
+}
+<% } %>

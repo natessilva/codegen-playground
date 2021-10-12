@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+docker network create codegen 2>/dev/null
+
+db_name="db"
+port="5432"
+data_dir="$(pwd)/db/docker/data"
+
+if ! [ -z "$TEST" ]; then
+  db_name="db-test"
+  port="5433"
+  data_dir="$(pwd)/db/docker/test-data"
+fi
+
+docker run \
+  -d \
+  --name ${db_name} \
+  -e POSTGRES_DATABASE=codegen \
+  -e POSTGRES_USER=codegen \
+  -e POSTGRES_PASSWORD=codegen \
+  --network codegen \
+  -p ${port}:5432 \
+  -e PGDATA=/var/lib/postgresql/data/pgdata \
+  -v ${data_dir}:/var/lib/postgresql/data \
+  --rm \
+  postgres
