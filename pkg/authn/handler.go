@@ -1,7 +1,7 @@
 package authn
 
 import (
-	"codegen/app/db/model"
+	"codegen/app/db/model/userdb"
 	"database/sql"
 	"net/http"
 	"strings"
@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Handle(model *model.Queries, key string, h http.Handler) http.HandlerFunc {
+func Handle(user *userdb.Queries, key string, h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a := r.Header.Get("Authorization")
 		if a == "" || !strings.HasPrefix(a, "Bearer ") {
@@ -33,8 +33,7 @@ func Handle(model *model.Queries, key string, h http.Handler) http.HandlerFunc {
 			w.Write([]byte("invalid token"))
 			return
 		}
-
-		_, err = model.GetUser(r.Context(), int32(claims.UserID))
+		_, err = user.Get(r.Context(), int32(claims.UserID))
 		if err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -45,7 +44,7 @@ func Handle(model *model.Queries, key string, h http.Handler) http.HandlerFunc {
 			w.Write([]byte(errors.Wrap(err, "query error").Error()))
 			return
 		}
-		h.ServeHTTP(w, requestWithIdentity(r, Identity{
+		h.ServeHTTP(w, RequestWithIdentity(r, Identity{
 			UserID: claims.UserID,
 		}))
 	}

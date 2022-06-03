@@ -6,32 +6,32 @@ import (
 	"context"
 	"database/sql"
 
-	"codegen/app/db/model"
+	"codegen/app/db/model/userdb"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
-	model *model.Queries
-	db    *sql.DB
+	user *userdb.Queries
+	db   *sql.DB
 }
 
-func NewService(model *model.Queries, db *sql.DB) *Service {
+func NewService(user *userdb.Queries, db *sql.DB) *Service {
 	return &Service{
-		model: model,
-		db:    db,
+		user: user,
+		db:   db,
 	}
 }
 
 func (s *Service) Get(ctx context.Context, i app.Empty) (app.UserInfo, error) {
 	identity := authn.IdentityFromFromContext(ctx)
-	name, err := s.model.GetUser(ctx, int32(identity.UserID))
+	user, err := s.user.Get(ctx, int32(identity.UserID))
 	if err != nil {
 		return app.UserInfo{}, errors.Wrap(err, "query error")
 	}
 	return app.UserInfo{
-		Name: name,
+		Name: user.Name,
 	}, nil
 }
 
@@ -42,12 +42,12 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 		return app.OK{}, errors.Wrap(err, "begin error")
 	}
 	defer tx.Rollback()
-	txModel := s.model.WithTx(tx)
-	oldHash, err := txModel.GetPasswordById(ctx, int32(identity.UserID))
+	userTx := s.user.WithTx(tx)
+	u, err := userTx.Get(ctx, int32(identity.UserID))
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "query error getting hash")
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(oldHash), []byte(i.OldPassword))
+	err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(i.OldPassword))
 	if err != nil {
 		return app.OK{
 			OK: false,
@@ -57,7 +57,7 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "hashing error")
 	}
-	err = txModel.SetPassword(ctx, model.SetPasswordParams{
+	err = userTx.SetPassword(ctx, userdb.SetPasswordParams{
 		PasswordHash: newHash,
 		ID:           int32(identity.UserID),
 	})
@@ -75,7 +75,7 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 
 func (s *Service) Update(ctx context.Context, i app.UserInfo) (app.Empty, error) {
 	identity := authn.IdentityFromFromContext(ctx)
-	err := s.model.UpdateUser(ctx, model.UpdateUserParams{
+	err := s.user.Update(ctx, userdb.UpdateParams{
 		ID:   int32(identity.UserID),
 		Name: i.Name,
 	})

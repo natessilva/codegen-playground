@@ -1,7 +1,7 @@
 package authn
 
 import (
-	"codegen/app/db/model"
+	"codegen/app/db/model/userdb"
 	"context"
 	"database/sql"
 	"time"
@@ -14,12 +14,12 @@ const BcryptCost = 10
 
 type Service struct {
 	signingKey string
-	model      *model.Queries
+	user       *userdb.Queries
 }
 
-func NewService(model *model.Queries, signingKey string) *Service {
+func NewService(user *userdb.Queries, signingKey string) *Service {
 	return &Service{
-		model:      model,
+		user:       user,
 		signingKey: signingKey,
 	}
 }
@@ -29,7 +29,7 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "hashing error")
 	}
-	userId, err := s.model.CreateUser(ctx, model.CreateUserParams{
+	userId, err := s.user.Create(ctx, userdb.CreateParams{
 		Email:        i.Email,
 		PasswordHash: hash,
 	})
@@ -41,18 +41,18 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 		}
 		return AuthOutput{}, errors.Wrap(err, "query error")
 	}
-	ss, err := getTokenForUser(s.signingKey, int(userId), time.Hour*2)
+	t, err := getTokenForUser(s.signingKey, int(userId), time.Hour*2)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signing token")
 	}
 	return AuthOutput{
-		Token: ss,
+		Token: t,
 		OK:    true,
 	}, nil
 }
 
 func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
-	user, err := s.model.GetPasswordByEmail(ctx, i.Email)
+	user, err := s.user.GetByEmail(ctx, i.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return AuthOutput{
@@ -67,12 +67,12 @@ func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
 			OK: false,
 		}, nil
 	}
-	ss, err := getTokenForUser(s.signingKey, int(user.ID), time.Hour*24*30)
+	t, err := getTokenForUser(s.signingKey, int(user.ID), time.Hour*24*30)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signing token")
 	}
 	return AuthOutput{
-		Token: ss,
+		Token: t,
 		OK:    true,
 	}, nil
 }

@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"codegen/app/db/model"
+	"codegen/app/db/model/userdb"
 	"codegen/app/pkg/apimux"
 	"codegen/app/pkg/app"
 	"codegen/app/pkg/app/user"
@@ -34,7 +34,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	queries := model.New(db)
+	queries := userdb.New(db)
 
 	authnServer := apimux.NewServer()
 	authn.RegisterAuthNService(authnServer, authn.NewService(queries, jwtKey))

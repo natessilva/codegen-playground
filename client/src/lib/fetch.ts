@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 export function getCaller(
   baseUrl: string,
   basePath: string,

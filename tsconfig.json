@@ -1,8 +1,12 @@
 {
-  "include": ["src/**/*"],
+  "include": ["client/src/**/*"],
   "exclude": ["node_modules/*"],
   "compilerOptions": {
-    "strict": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "moduleResolution": "node",
+    "strict": false,
+    "target": "es2017",
     "types": ["jest"]
   }
 }

@@ -1,8 +1,6 @@
-import { AuthNService } from "./client_gen";
+import { authN } from "../test-helpers";
 
 describe("an unauthenticated user", () => {
-  const authN = new AuthNService("http://localhost:8001", "");
-
   beforeAll(async () => {
     const { token, ok } = await authN.signup({
       email: "authn@test.com",

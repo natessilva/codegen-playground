@@ -1,22 +1,23 @@
+import { authN, getUserToken } from "../test-helpers";
 import { UserService } from "./client_gen";
-import { AuthNService } from "../authn/client_gen";
+
 const url = "http://localhost:8001";
 describe("an authenticated user", () => {
-  const authN = new AuthNService(url, "");
-  let user = new UserService(url, "");
+  let user: UserService;
+  let email: string;
+  let password: string;
 
   beforeAll(async () => {
-    const { token, ok } = await authN.signup({
-      email: "user@test.com",
-      password: "test",
-    });
-    expect(ok).toEqual(true);
-    expect(token).not.toEqual("");
-    user = new UserService(url, token);
+    const t = await getUserToken();
+    email = t.email;
+    password = t.password;
+    user = new UserService(url, t.token);
   });
 
   it("can get and update user profile", async () => {
-    const { name } = await user.get({});
+    const { name } = await user.get({
+      bar: "baz",
+    });
     expect(name).toEqual("");
     await user.update({ name: "custom name" });
     const { name: updatedName } = await user.get({});
@@ -33,13 +34,13 @@ describe("an authenticated user", () => {
 
   it("can change password with correct old passwrod", async () => {
     const { ok } = await user.setPassword({
-      oldPassword: "test",
+      oldPassword: password,
       newPassword: "new",
     });
     expect(ok).toEqual(true);
     const { token: badLoginToken, ok: badLoginOk } = await authN.login({
-      email: "user@test.com",
-      password: "test",
+      email,
+      password,
     });
     expect(badLoginOk).toEqual(false);
     try {
@@ -47,7 +48,7 @@ describe("an authenticated user", () => {
       fail(new Error("user service should throw here"));
     } catch {}
     const { token, ok: loginOk } = await authN.login({
-      email: "user@test.com",
+      email,
       password: "new",
     });
     expect(loginOk).toEqual(true);

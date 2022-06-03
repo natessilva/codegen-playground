@@ -3,6 +3,7 @@ pkg/*/server_gen.go
 db/docker/data
 db/docker/test-data
 db/docker/test.tar
+db/model
 client/src/lib/*/client_gen.ts
 /gen
 /server
