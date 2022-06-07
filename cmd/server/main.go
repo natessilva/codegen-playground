@@ -13,6 +13,7 @@ import (
 	"codegen/app/db/model"
 	"codegen/app/pkg/apimux"
 	"codegen/app/pkg/app"
+	"codegen/app/pkg/app/ticket"
 	"codegen/app/pkg/app/user"
 	"codegen/app/pkg/app/workspace"
 	"codegen/app/pkg/authn"
@@ -43,6 +44,7 @@ func main() {
 
 	appServer := apimux.NewServer()
 	app.RegisterUserService(appServer, user.NewService(model, db))
+	app.RegisterTicketService(appServer, ticket.NewService(model, db))
 	app.RegisterWorkspaceService(appServer, workspace.NewService(model, db, jwtKey))
 	mux.Handle("/app/", authn.Handle(model, jwtKey, http.StripPrefix("/app", appServer)))
 

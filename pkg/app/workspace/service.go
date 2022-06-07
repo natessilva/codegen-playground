@@ -26,18 +26,18 @@ func NewService(q *model.Queries, db *sql.DB, signingKey string) *Service {
 	}
 }
 
-func (s *Service) Get(ctx context.Context, i app.Empty) (app.WorkspaceInfo, error) {
+func (s *Service) Get(ctx context.Context, i app.Empty) (app.Workspace, error) {
 	identity := authn.IdentityFromFromContext(ctx)
 	user, err := s.q.GetWorkspace(ctx, int32(identity.WorkspaceID))
 	if err != nil {
-		return app.WorkspaceInfo{}, errors.Wrap(err, "get")
+		return app.Workspace{}, errors.Wrap(err, "get")
 	}
-	return app.WorkspaceInfo{
+	return app.Workspace{
 		Name: user.Name,
 	}, nil
 }
 
-func (s *Service) Update(ctx context.Context, i app.WorkspaceInfo) (app.Empty, error) {
+func (s *Service) Update(ctx context.Context, i app.Workspace) (app.Empty, error) {
 	identity := authn.IdentityFromFromContext(ctx)
 	err := s.q.UpdateWorkspace(ctx, model.UpdateWorkspaceParams{
 		ID:   int32(identity.WorkspaceID),
@@ -46,7 +46,7 @@ func (s *Service) Update(ctx context.Context, i app.WorkspaceInfo) (app.Empty, e
 	return app.Empty{}, err
 }
 
-func (s *Service) Create(ctx context.Context, i app.WorkspaceInfo) (app.ID, error) {
+func (s *Service) Create(ctx context.Context, i app.Workspace) (app.ID, error) {
 	identity := authn.IdentityFromFromContext(ctx)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
