@@ -1,7 +1,7 @@
 package authn
 
 import (
-	"codegen/app/db/model/userdb"
+	"codegen/app/db/model"
 	"context"
 	"database/sql"
 	"time"
@@ -14,13 +14,15 @@ const BcryptCost = 10
 
 type Service struct {
 	signingKey string
-	user       *userdb.Queries
+	q          *model.Queries
+	db         *sql.DB
 }
 
-func NewService(user *userdb.Queries, signingKey string) *Service {
+func NewService(q *model.Queries, db *sql.DB, signingKey string) *Service {
 	return &Service{
-		user:       user,
 		signingKey: signingKey,
+		q:          q,
+		db:         db,
 	}
 }
 
@@ -29,9 +31,22 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "hashing error")
 	}
-	userId, err := s.user.Create(ctx, userdb.CreateParams{
-		Email:        i.Email,
-		PasswordHash: hash,
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "tx begin")
+	}
+	defer tx.Rollback()
+	q := s.q.WithTx(tx)
+
+	workspaceID, err := q.CreateWorkspace(ctx, "")
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "create workspace")
+	}
+	userID, err := q.CreateUser(ctx, model.CreateUserParams{
+		Email:              i.Email,
+		PasswordHash:       hash,
+		CurrentWorkspaceID: workspaceID,
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -39,11 +54,22 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 				OK: false,
 			}, nil
 		}
-		return AuthOutput{}, errors.Wrap(err, "query error")
+		return AuthOutput{}, errors.Wrap(err, "create user")
 	}
-	t, err := getTokenForUser(s.signingKey, int(userId), time.Hour*2)
+	wsuserID, err := q.CreateWorkspaceUser(ctx, model.CreateWorkspaceUserParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+	})
 	if err != nil {
-		return AuthOutput{}, errors.Wrap(err, "signing token")
+		return AuthOutput{}, errors.Wrap(err, "attach user")
+	}
+	t, err := GetTokenForUser(s.signingKey, int(wsuserID), time.Hour*2)
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "signtoken")
+	}
+	err = tx.Commit()
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "commit")
 	}
 	return AuthOutput{
 		Token: t,
@@ -52,7 +78,13 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 }
 
 func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
-	user, err := s.user.GetByEmail(ctx, i.Email)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "begin")
+	}
+	defer tx.Rollback()
+	q := s.q.WithTx(tx)
+	user, err := q.GetUserByEmail(ctx, i.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return AuthOutput{
@@ -67,7 +99,14 @@ func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
 			OK: false,
 		}, nil
 	}
-	t, err := getTokenForUser(s.signingKey, int(user.ID), time.Hour*24*30)
+	wsUserID, err := q.GetWorkspaceUserId(ctx, model.GetWorkspaceUserIdParams{
+		WorkspaceID: user.CurrentWorkspaceID,
+		UserID:      user.ID,
+	})
+	if err != nil {
+		return AuthOutput{}, errors.Wrap(err, "get workspace user")
+	}
+	t, err := GetTokenForUser(s.signingKey, int(wsUserID), time.Hour*24*30)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signing token")
 	}

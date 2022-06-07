@@ -1,7 +1,7 @@
 version: 1
 packages:
-  - path: "db/model/userdb"
-    name: "userdb"
+  - path: "db/model"
+    name: "model"
     engine: "postgresql"
     schema: "db/migrations/"
-    queries: "db/queries/user.sql"
+    queries: "db/queries/"

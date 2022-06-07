@@ -10,10 +10,11 @@ import (
 	"os/signal"
 	"time"
 
-	"codegen/app/db/model/userdb"
+	"codegen/app/db/model"
 	"codegen/app/pkg/apimux"
 	"codegen/app/pkg/app"
 	"codegen/app/pkg/app/user"
+	"codegen/app/pkg/app/workspace"
 	"codegen/app/pkg/authn"
 
 	_ "github.com/lib/pq"
@@ -34,15 +35,16 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	queries := userdb.New(db)
+	model := model.New(db)
 
 	authnServer := apimux.NewServer()
-	authn.RegisterAuthNService(authnServer, authn.NewService(queries, jwtKey))
+	authn.RegisterAuthNService(authnServer, authn.NewService(model, db, jwtKey))
 	mux.Handle("/authn/", http.StripPrefix("/authn", authnServer))
 
 	appServer := apimux.NewServer()
-	app.RegisterUserService(appServer, user.NewService(queries, db))
-	mux.Handle("/app/", authn.Handle(queries, jwtKey, http.StripPrefix("/app", appServer)))
+	app.RegisterUserService(appServer, user.NewService(model, db))
+	app.RegisterWorkspaceService(appServer, workspace.NewService(model, db, jwtKey))
+	mux.Handle("/app/", authn.Handle(model, jwtKey, http.StripPrefix("/app", appServer)))
 
 	srv := &http.Server{
 		Addr:    ":" + os.Getenv("SERVER_PORT"),

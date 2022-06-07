@@ -10,7 +10,8 @@ type contextKey struct{}
 var key contextKey
 
 type Identity struct {
-	UserID int
+	WorkspaceID int
+	UserID      int
 }
 
 func RequestWithIdentity(r *http.Request, i Identity) *http.Request {

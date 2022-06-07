@@ -7,13 +7,13 @@ import (
 )
 
 type userClaims struct {
-	UserID int `json:"userId"`
+	WSUserID int `json:"wsUserId"`
 	jwt.StandardClaims
 }
 
-func getTokenForUser(key string, userID int, d time.Duration) (string, error) {
+func GetTokenForUser(key string, wsUserID int, d time.Duration) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims{
-		UserID: userID,
+		WSUserID: wsUserID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: jwt.At(time.Now().Add(d)),
 			Issuer:    "codegen/app",

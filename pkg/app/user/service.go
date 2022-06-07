@@ -6,27 +6,27 @@ import (
 	"context"
 	"database/sql"
 
-	"codegen/app/db/model/userdb"
+	"codegen/app/db/model"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
-	user *userdb.Queries
-	db   *sql.DB
+	q  *model.Queries
+	db *sql.DB
 }
 
-func NewService(user *userdb.Queries, db *sql.DB) *Service {
+func NewService(q *model.Queries, db *sql.DB) *Service {
 	return &Service{
-		user: user,
-		db:   db,
+		q:  q,
+		db: db,
 	}
 }
 
 func (s *Service) Get(ctx context.Context, i app.Empty) (app.UserInfo, error) {
 	identity := authn.IdentityFromFromContext(ctx)
-	user, err := s.user.Get(ctx, int32(identity.UserID))
+	user, err := s.q.GetUser(ctx, int32(identity.UserID))
 	if err != nil {
 		return app.UserInfo{}, errors.Wrap(err, "query error")
 	}
@@ -42,8 +42,8 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 		return app.OK{}, errors.Wrap(err, "begin error")
 	}
 	defer tx.Rollback()
-	userTx := s.user.WithTx(tx)
-	u, err := userTx.Get(ctx, int32(identity.UserID))
+	q := s.q.WithTx(tx)
+	u, err := q.GetUser(ctx, int32(identity.UserID))
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "query error getting hash")
 	}
@@ -57,7 +57,7 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "hashing error")
 	}
-	err = userTx.SetPassword(ctx, userdb.SetPasswordParams{
+	err = q.SetUserPassword(ctx, model.SetUserPasswordParams{
 		PasswordHash: newHash,
 		ID:           int32(identity.UserID),
 	})
@@ -75,7 +75,7 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 
 func (s *Service) Update(ctx context.Context, i app.UserInfo) (app.Empty, error) {
 	identity := authn.IdentityFromFromContext(ctx)
-	err := s.user.Update(ctx, userdb.UpdateParams{
+	err := s.q.UpdateUser(ctx, model.UpdateUserParams{
 		ID:   int32(identity.UserID),
 		Name: i.Name,
 	})
