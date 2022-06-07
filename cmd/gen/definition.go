@@ -3,6 +3,7 @@ package main
 type Definition struct {
 	Services []Service
 	Structs  []Struct
+	Enums    []Enum
 }
 
 type Service struct {
@@ -19,6 +20,16 @@ type Method struct {
 type Struct struct {
 	Name   string
 	Fields []Field
+}
+
+type Enum struct {
+	Name   string
+	Consts []Const
+}
+
+type Const struct {
+	Name  string
+	Value string
 }
 
 type Field struct {

@@ -17,4 +17,6 @@ export class <%= service.Name %> {
 export type <%= object.Name %> = {<%= for (field) in object.Fields { %>
 	<%= camelize_down(field.Name) %>:<%= json_type(field.Type, field.IsNumeric) %><%= if (field.IsSlice == true) { %>[]<% } %><% } %>
 }
-<% } %>
+<% } %><%= for (object) in definition.Enums { %>
+export type <%= object.Name %> = <%= for (c) in object.Consts { %>
+	| "<%= c.Value%>"<% } %>

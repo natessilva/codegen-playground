@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go/constant"
 	"go/types"
 	"path/filepath"
 
@@ -50,13 +51,14 @@ func ParseDefinition(pattern string) (Definition, error) {
 		}
 	}
 	structMap := make(map[string]Struct)
+	enumMap := make(map[string]Enum)
 	for _, s := range result.Services {
 		for _, m := range s.Methods {
-			err := parseStruct(structMap, scope.Lookup(m.Input).Type().Underlying().(*types.Struct), m.Input)
+			err := parseStruct(structMap, enumMap, scope.Lookup(m.Input).Type().Underlying().(*types.Struct), m.Input)
 			if err != nil {
 				return result, errors.Wrapf(err, "struct %s failed to parse", m.Input)
 			}
-			err = parseStruct(structMap, scope.Lookup(m.Output).Type().Underlying().(*types.Struct), m.Output)
+			err = parseStruct(structMap, enumMap, scope.Lookup(m.Output).Type().Underlying().(*types.Struct), m.Output)
 			if err != nil {
 				return result, errors.Wrapf(err, "struct %s failed to parse", m.Output)
 			}
@@ -66,10 +68,31 @@ func ParseDefinition(pattern string) (Definition, error) {
 		seenNames[v.Name] = true
 		result.Structs = append(result.Structs, v)
 	}
+	for _, v := range enumMap {
+		seenNames[v.Name] = true
+	}
 	for name, seen := range seenNames {
 		if !seen {
+			obj := scope.Lookup(name)
+			if c, ok := obj.(*types.Const); ok {
+				t := obj.Type()
+				typeString := types.TypeString(t, func(*types.Package) string { return "" })
+				if _, ok := enumMap[typeString]; !ok {
+					return result, fmt.Errorf("const %s must be named enum string types", typeString)
+				}
+				enum := enumMap[typeString]
+				enum.Consts = append(enumMap[typeString].Consts, Const{
+					Name:  name,
+					Value: constant.StringVal(c.Val()),
+				})
+				enumMap[typeString] = enum
+				continue
+			}
 			return result, fmt.Errorf("scope %s must be referenced by a service", name)
 		}
+	}
+	for _, v := range enumMap {
+		result.Enums = append(result.Enums, v)
 	}
 	return result, nil
 }
@@ -118,7 +141,7 @@ func parseService(s *types.Interface, name string) (Service, error) {
 	return svc, nil
 }
 
-func parseStruct(structMap map[string]Struct, s *types.Struct, name string) error {
+func parseStruct(structMap map[string]Struct, enumMap map[string]Enum, s *types.Struct, name string) error {
 	if _, ok := structMap[name]; ok {
 		return nil
 	}
@@ -139,27 +162,28 @@ func parseStruct(structMap map[string]Struct, s *types.Struct, name string) erro
 			field.IsSlice = true
 			t = i.Elem()
 		}
+		field.Type = types.TypeString(t, func(*types.Package) string { return "" })
 		switch ut := t.Underlying().(type) {
 		case *types.Basic:
 			if !isConstType(ut) {
 				return fmt.Errorf("struct field %s must be a const basic type", field.Name)
 			}
+			if _, ok := t.(*types.Named); ok {
+				enumMap[field.Type] = Enum{Name: field.Type}
+			}
 			field.IsNumeric = IsNumeric(ut)
-			break
 		case *types.Struct:
 			n, ok := t.(*types.Named)
 			if !ok {
 				return fmt.Errorf("struct field %s must be a named struct type", field.Name)
 			}
-			err := parseStruct(structMap, ut, n.Obj().Name())
+			err := parseStruct(structMap, enumMap, ut, n.Obj().Name())
 			if err != nil {
 				return errors.Wrapf(err, "struct %s for field %s failed to parse", n.Obj().Name(), field.Name)
 			}
-			break
 		default:
 			return fmt.Errorf("struct field %s must be a const basic or a name struct type", field.Name)
 		}
-		field.Type = types.TypeString(t, func(*types.Package) string { return "" })
 		st.Fields = append(st.Fields, field)
 	}
 	structMap[name] = st
@@ -168,6 +192,10 @@ func parseStruct(structMap map[string]Struct, s *types.Struct, name string) erro
 
 func isConstType(t *types.Basic) bool {
 	return t.Info()&types.IsConstType != 0
+}
+
+func isStringType(t *types.Basic) bool {
+	return t.Info()&types.IsString != 0
 }
 
 func IsNumeric(t *types.Basic) bool {

@@ -7,6 +7,14 @@ type TicketService interface {
 	List(Empty) Tickets
 }
 
+type TicketStatus string
+
+const (
+	TicketStatusOpen     TicketStatus = "open"
+	TicketStatusClosed   TicketStatus = "closed"
+	TicketStatusArchived TicketStatus = "archived"
+)
+
 type NewTicket struct {
 	Subject     string
 	Description string
@@ -16,7 +24,7 @@ type Ticket struct {
 	ID          int
 	Subject     string
 	Description string
-	Status      string
+	Status      TicketStatus
 }
 
 type GetTicket struct {

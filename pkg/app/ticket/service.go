@@ -111,6 +111,6 @@ func toAppTicket(ticket model.Ticket) app.Ticket {
 		ID:          int(ticket.ID),
 		Subject:     ticket.Subject,
 		Description: ticket.Description,
-		Status:      string(ticket.Status),
+		Status:      app.TicketStatus(ticket.Status),
 	}
 }
