@@ -1,6 +1,11 @@
 import fetch from "node-fetch";
 import { v4 } from "uuid";
 import { AuthNService } from "./authn/client_gen";
+
+// provide node-fetch globally to our jest tests
+// this is because the client code expects to
+// run in browser and run the built-in fetch
+// method.
 globalThis.fetch = fetch as any;
 
 export const url = "http://localhost:8001";

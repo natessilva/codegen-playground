@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -29,13 +28,11 @@ const jwtKey = "secret key"
 func main() {
 	db, err := sql.Open("postgres", "sslmode=disable")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
 	defer db.Close()
 
 	mux := http.NewServeMux()
-
 	model := model.New(db)
 
 	authnServer := apimux.NewServer()

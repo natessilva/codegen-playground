@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -e
 export TEST=true
 export PGHOST=localhost
 export PGDATABASE=codegen
@@ -8,11 +8,11 @@ export PGPASSWORD=codegen
 export SERVER_PORT=8001
 
 function finish {
+  docker stop db-test
   kill $pid
   wait $pid
-  docker stop db-test
 }
-trap finish EXIT
+trap finish EXIT ERR
 
 if ! [ -f db/docker/test.tar ]; then
   db/docker/build-test.sh

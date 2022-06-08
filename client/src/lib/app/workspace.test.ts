@@ -1,7 +1,6 @@
-import { getUserToken } from "../test-helpers";
+import { getUserToken, url } from "../test-helpers";
 import { WorkspaceService } from "./client_gen";
 
-const url = "http://localhost:8001";
 describe("a workspace user", () => {
   let workspace: WorkspaceService;
 
@@ -47,5 +46,20 @@ describe("a workspace user", () => {
 
     const { name } = await newWorkspace.get({});
     expect(name).toBe("switch workspace");
+  });
+
+  it("cannot switch to workspaces they do not belong to", async () => {
+    // This newToken is for a new user and workspace.
+    // The original user is not a member of this new
+    // workspace and therefore cannot switch to it.
+    const { token: newToken } = await getUserToken();
+    const newWorkspace = new WorkspaceService(url, newToken);
+    const {
+      list: [{ id }],
+    } = await newWorkspace.list({});
+    expect(id).not.toBe(null);
+
+    const { ok } = await workspace.switch({ id });
+    expect(ok).toBe(false);
   });
 });

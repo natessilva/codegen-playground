@@ -1,7 +1,6 @@
-import { getUserToken } from "../test-helpers";
+import { getUserToken, url } from "../test-helpers";
 import { TicketService } from "./client_gen";
 
-const url = "http://localhost:8001";
 describe("a workspace user", () => {
   let ticket: TicketService;
 
@@ -42,13 +41,19 @@ describe("a workspace user", () => {
     expect(getOk).toBe(true);
     expect(status).toBe("archived");
 
+    // id: 0 will never exist
     const { ok: notOk } = await ticket.get({ id: 0 });
     expect(notOk).toBe(false);
   });
 
-  it("cannot get tickets outside of workspace", async () => {
-    const { token } = await getUserToken();
-    const newTicket = new TicketService(url, token);
+  it("cannot crud tickets outside of workspace", async () => {
+    // newToken is a token for a new tenant in the system.
+    // The original token and this token should have entirely
+    // isolated data sets. The original ticket service cannot
+    // access anything created by the new ticket service
+    // created by this new token and vice versa.
+    const { token: newToken } = await getUserToken();
+    const newTicket = new TicketService(url, newToken);
 
     const { id } = await newTicket.create({
       subject: "a new ticket",

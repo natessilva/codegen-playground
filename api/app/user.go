@@ -1,12 +1,12 @@
 package app
 
 type UserService interface {
-	Get(Empty) UserInfo
-	Update(UserInfo) Empty
+	Get(Empty) User
+	Update(User) Empty
 	SetPassword(SetPasswordInput) OK
 }
 
-type UserInfo struct {
+type User struct {
 	Name string
 }
 type SetPasswordInput struct {

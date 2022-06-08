@@ -24,13 +24,13 @@ func NewService(q *model.Queries, db *sql.DB) *Service {
 	}
 }
 
-func (s *Service) Get(ctx context.Context, i app.Empty) (app.UserInfo, error) {
+func (s *Service) Get(ctx context.Context, i app.Empty) (app.User, error) {
 	identity := authn.IdentityFromFromContext(ctx)
 	user, err := s.q.GetUser(ctx, int32(identity.UserID))
 	if err != nil {
-		return app.UserInfo{}, errors.Wrap(err, "query error")
+		return app.User{}, errors.Wrap(err, "query error")
 	}
-	return app.UserInfo{
+	return app.User{
 		Name: user.Name,
 	}, nil
 }
@@ -73,7 +73,7 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 	}, nil
 }
 
-func (s *Service) Update(ctx context.Context, i app.UserInfo) (app.Empty, error) {
+func (s *Service) Update(ctx context.Context, i app.User) (app.Empty, error) {
 	identity := authn.IdentityFromFromContext(ctx)
 	err := s.q.UpdateUser(ctx, model.UpdateUserParams{
 		ID:   int32(identity.UserID),
