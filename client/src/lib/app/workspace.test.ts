@@ -62,4 +62,54 @@ describe("a workspace user", () => {
     const { ok } = await workspace.switch({ id });
     expect(ok).toBe(false);
   });
+
+  it("can add existing users to the workspace by email", async () => {
+    const origName = "Original workspace";
+    await workspace.update({ name: origName });
+    const {
+      list: [{ id }],
+    } = await workspace.list({});
+
+    const { token, email } = await getUserToken();
+    const newWorkspace = new WorkspaceService(url, token);
+    const newName = "New workspace";
+    await newWorkspace.update({ name: newName });
+
+    const { ok: notOk } = await workspace.addUser({
+      email: "fakeEmail@fake.com",
+    });
+    expect(notOk).toBe(false);
+
+    const { ok: switchNotOkYet } = await newWorkspace.switch({ id });
+    expect(switchNotOkYet).toBe(false);
+
+    const { ok } = await workspace.addUser({ email });
+    expect(ok).toBe(true);
+
+    // addUser is idempotent
+    const { ok: idempotentOk } = await workspace.addUser({ email });
+    expect(idempotentOk).toBe(true);
+
+    const { list } = await newWorkspace.list({});
+    expect(list.length).toBe(2);
+
+    const { ok: switchOk, token: switchedToken } = await newWorkspace.switch({
+      id,
+    });
+    expect(switchOk).toBe(true);
+
+    const switchedWorkspace = new WorkspaceService(url, switchedToken);
+
+    expect((await workspace.get({})).name).toEqual(
+      (await switchedWorkspace.get({})).name
+    );
+
+    await workspace.update({ name: "updated from original user" });
+    const { name: switchedWorkspaceName } = await switchedWorkspace.get({});
+    expect(switchedWorkspaceName).toBe("updated from original user");
+
+    await switchedWorkspace.update({ name: "updated from new user" });
+    const { name: originalWorkspaceName } = await workspace.get({});
+    expect(originalWorkspaceName).toBe("updated from new user");
+  });
 });

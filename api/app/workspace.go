@@ -6,6 +6,7 @@ type WorkspaceService interface {
 	Create(Workspace) ID
 	List(Empty) Workspaces
 	Switch(ID) AuthOutput
+	AddUser(AddUserInput) OK
 }
 
 type Workspace struct {
@@ -24,4 +25,8 @@ type Workspaces struct {
 type AuthOutput struct {
 	Token string
 	OK    bool
+}
+
+type AddUserInput struct {
+	Email string
 }

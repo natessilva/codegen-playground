@@ -129,3 +129,33 @@ func (s *Service) Switch(ctx context.Context, i app.ID) (app.AuthOutput, error) 
 		OK:    true,
 	}, nil
 }
+
+func (s *Service) AddUser(ctx context.Context, i app.AddUserInput) (app.OK, error) {
+	identity := authn.IdentityFromFromContext(ctx)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return app.OK{}, errors.Wrap(err, "begin")
+	}
+	defer tx.Rollback()
+	q := s.q.WithTx(tx)
+
+	user, err := q.GetUserByEmail(ctx, i.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return app.OK{OK: false}, nil
+		}
+		return app.OK{}, errors.Wrap(err, "get")
+	}
+	_, err = q.CreateWorkspaceUser(ctx, model.CreateWorkspaceUserParams{
+		WorkspaceID: int32(identity.WorkspaceID),
+		UserID:      user.ID,
+	})
+	if err != nil && err != sql.ErrNoRows {
+		return app.OK{}, errors.Wrap(err, "create workspace user")
+	}
+	err = tx.Commit()
+	if err != nil {
+		return app.OK{}, errors.Wrap(err, "commit")
+	}
+	return app.OK{OK: true}, nil
+}
