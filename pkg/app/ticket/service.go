@@ -5,6 +5,7 @@ import (
 	"codegen/app/pkg/authn"
 	"context"
 	"database/sql"
+	"strings"
 
 	"codegen/app/db/model"
 
@@ -23,94 +24,81 @@ func NewService(q *model.Queries, db *sql.DB) *Service {
 	}
 }
 
-func (s *Service) Create(ctx context.Context, i app.NewTicket) (app.ID, error) {
-	identity := authn.IdentityFromFromContext(ctx)
+func (s *Service) Create(ctx context.Context, i app.Ticket) (app.ID, error) {
+	user := authn.UserFromFromContext(ctx)
 	id, err := s.q.CreateTicket(ctx, model.CreateTicketParams{
-		WorkspaceID: int32(identity.WorkspaceID),
-		Subject:     i.Subject,
-		Description: i.Description,
+		SpaceID: user.SpaceID,
+		Body:    i.Body,
+		Subject: i.Subject,
 	})
 	if err != nil {
-		return app.ID{}, errors.Wrap(err, "create")
+		return app.ID{}, errors.Wrap(err, "query error")
 	}
-	return app.ID{ID: int(id)}, nil
+	return app.ID{
+		ID: id,
+	}, nil
 }
 
-func (s *Service) Get(ctx context.Context, i app.ID) (app.GetTicket, error) {
-	identity := authn.IdentityFromFromContext(ctx)
-	ticket, err := s.q.GetTicket(ctx, int32(i.ID))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return app.GetTicket{OK: false}, nil
-		}
-		return app.GetTicket{}, errors.Wrap(err, "get")
-	}
-	if identity.WorkspaceID != int(ticket.WorkspaceID) {
-		return app.GetTicket{
+func (s *Service) Get(ctx context.Context, i app.ID) (app.GetTicketResponse, error) {
+	user := authn.UserFromFromContext(ctx)
+	ticket, err := s.q.GetTicket(ctx, model.GetTicketParams{
+		SpaceID: user.SpaceID,
+		ID:      i.ID,
+	})
+	if err == sql.ErrNoRows {
+		return app.GetTicketResponse{
 			OK: false,
 		}, nil
 	}
-	return app.GetTicket{
-		Ticket: toAppTicket(ticket),
-		OK:     true,
+	if err != nil {
+		return app.GetTicketResponse{}, errors.Wrap(err, "sql error")
+	}
+	return app.GetTicketResponse{
+		Ticket: app.Ticket{
+			Body:    ticket.Body,
+			Subject: ticket.Subject,
+		},
+		OK: true,
 	}, nil
 }
 
-func (s *Service) Update(ctx context.Context, i app.Ticket) (app.OK, error) {
-	identity := authn.IdentityFromFromContext(ctx)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return app.OK{}, errors.Wrap(err, "begin")
-	}
-	defer tx.Rollback()
+func (s *Service) Update(ctx context.Context, i app.UpdateTicketInput) (app.Empty, error) {
+	user := authn.UserFromFromContext(ctx)
+	err := s.q.UpdateTicket(ctx, model.UpdateTicketParams(model.UpdateTicketParams{
+		SpaceID: user.SpaceID,
+		ID:      i.ID,
+		Subject: i.Subject,
+		Body:    i.Body,
+	}))
+	return app.Empty{}, err
+}
 
-	q := s.q.WithTx(tx)
-	ticket, err := q.GetTicket(ctx, int32(i.ID))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return app.OK{OK: false}, nil
-		}
-		return app.OK{}, errors.Wrap(err, "get")
-	}
-	if identity.WorkspaceID != int(ticket.WorkspaceID) {
-		return app.OK{OK: false}, nil
-	}
-	err = q.UpdateTicket(ctx, model.UpdateTicketParams{
-		ID:          int32(i.ID),
-		Subject:     i.Subject,
-		Description: i.Description,
-		Status:      model.TicketStatus(i.Status),
+func (s *Service) Assign(ctx context.Context, i app.AssignInput) (app.OK, error) {
+	user := authn.UserFromFromContext(ctx)
+	err := s.q.Assign(ctx, model.AssignParams{
+		SpaceID:    user.SpaceID,
+		TicketID:   i.TicketID,
+		IdentityID: i.UserID,
 	})
 	if err != nil {
-		return app.OK{}, errors.Wrap(err, "update")
+		// a FK constraint violation here means either the ticket doesn't exist
+		// or the user doesn't.
+		if strings.Contains(err.Error(), `insert or update on table "assignee" violates foreign key constraint`) {
+			return app.OK{
+				OK: false,
+			}, nil
+		}
+		return app.OK{}, errors.Wrap(err, "sql error")
 	}
-	err = tx.Commit()
-	if err != nil {
-		return app.OK{}, errors.Wrap(err, "commit")
-	}
-	return app.OK{OK: true}, nil
-}
-
-func (s *Service) List(ctx context.Context, i app.Empty) (app.Tickets, error) {
-	identity := authn.IdentityFromFromContext(ctx)
-	list, err := s.q.GetWorkspaceTickets(ctx, int32(identity.WorkspaceID))
-	if err != nil {
-		return app.Tickets{}, errors.Wrap(err, "get")
-	}
-	tickets := make([]app.Ticket, len(list))
-	for i := 0; i < len(list); i++ {
-		tickets[i] = toAppTicket(list[i])
-	}
-	return app.Tickets{
-		List: tickets,
+	return app.OK{
+		OK: true,
 	}, nil
 }
 
-func toAppTicket(ticket model.Ticket) app.Ticket {
-	return app.Ticket{
-		ID:          int(ticket.ID),
-		Subject:     ticket.Subject,
-		Description: ticket.Description,
-		Status:      app.TicketStatus(ticket.Status),
-	}
+func (s *Service) AssignSelf(ctx context.Context, i app.ID) (app.OK, error) {
+	user := authn.UserFromFromContext(ctx)
+	return s.Assign(ctx, app.AssignInput{
+		TicketID: i.ID,
+		UserID:   user.ID,
+	})
 }

@@ -1,23 +1,17 @@
 -- name: CreateTicket :one
-insert into ticket(workspace_id, subject, description)
-values($1,$2, $3)
+insert into ticket(space_id, body, subject)
+values(@space_id, @body, @subject)
 returning id;
 
 -- name: GetTicket :one
-select
-  *
+select *
 from ticket
-where id = $1;
-
--- name: GetWorkspaceTickets :many
-select
-  *
-from ticket
-where workspace_id = $1;
+where space_id = @space_id
+and id = @id;
 
 -- name: UpdateTicket :exec
-update ticket
-set subject = $2,
-description = $3,
-status = $4
-where id = $1;
+update ticket set
+subject = @subject,
+body = @body
+where space_id = @space_id
+and id = @id;

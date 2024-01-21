@@ -9,15 +9,15 @@ type contextKey struct{}
 
 var key contextKey
 
-type Identity struct {
-	WorkspaceID int
-	UserID      int
+type User struct {
+	SpaceID int32
+	ID      int32
 }
 
-func RequestWithIdentity(r *http.Request, i Identity) *http.Request {
+func RequestWithUser(r *http.Request, i User) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), &key, i))
 }
 
-func IdentityFromFromContext(ctx context.Context) Identity {
-	return ctx.Value(&key).(Identity)
+func UserFromFromContext(ctx context.Context) User {
+	return ctx.Value(&key).(User)
 }

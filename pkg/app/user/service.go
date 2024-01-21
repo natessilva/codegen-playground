@@ -25,25 +25,26 @@ func NewService(q *model.Queries, db *sql.DB) *Service {
 }
 
 func (s *Service) Get(ctx context.Context, i app.Empty) (app.User, error) {
-	identity := authn.IdentityFromFromContext(ctx)
-	user, err := s.q.GetUser(ctx, int32(identity.UserID))
+	identity := authn.UserFromFromContext(ctx)
+	user, err := s.q.GetIdentity(ctx, identity.ID)
 	if err != nil {
 		return app.User{}, errors.Wrap(err, "query error")
 	}
 	return app.User{
+		ID:   user.ID,
 		Name: user.Name,
 	}, nil
 }
 
 func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.OK, error) {
-	identity := authn.IdentityFromFromContext(ctx)
+	identity := authn.UserFromFromContext(ctx)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "begin error")
 	}
 	defer tx.Rollback()
 	q := s.q.WithTx(tx)
-	u, err := q.GetUser(ctx, int32(identity.UserID))
+	u, err := q.GetIdentity(ctx, identity.ID)
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "query error getting hash")
 	}
@@ -57,9 +58,9 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "hashing error")
 	}
-	err = q.SetUserPassword(ctx, model.SetUserPasswordParams{
+	err = q.SetIdentityPassword(ctx, model.SetIdentityPasswordParams{
 		PasswordHash: newHash,
-		ID:           int32(identity.UserID),
+		ID:           identity.ID,
 	})
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "query error setting hash")
@@ -73,10 +74,10 @@ func (s *Service) SetPassword(ctx context.Context, i app.SetPasswordInput) (app.
 	}, nil
 }
 
-func (s *Service) Update(ctx context.Context, i app.User) (app.Empty, error) {
-	identity := authn.IdentityFromFromContext(ctx)
-	err := s.q.UpdateUser(ctx, model.UpdateUserParams{
-		ID:   int32(identity.UserID),
+func (s *Service) Update(ctx context.Context, i app.UpdateUserInput) (app.Empty, error) {
+	identity := authn.UserFromFromContext(ctx)
+	err := s.q.UpdateIdentity(ctx, model.UpdateIdentityParams{
+		ID:   identity.ID,
 		Name: i.Name,
 	})
 	if err != nil {

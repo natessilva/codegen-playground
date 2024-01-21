@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import { v4 } from "uuid";
 import { AuthNService } from "./authn/client_gen";
+import { UserService } from "./app/client_gen";
 
 // provide node-fetch globally to our jest tests
 // this is because the client code expects to
@@ -25,5 +26,7 @@ export async function getUserToken() {
   });
   expect(ok).toEqual(true);
   expect(token).not.toEqual("");
-  return { token, email, password };
+  const userService = new UserService(url, token);
+  const { id } = await userService.get({});
+  return { token, email, password, id };
 }

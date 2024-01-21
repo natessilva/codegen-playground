@@ -33,7 +33,10 @@ func Handle(q *model.Queries, key string, h http.Handler) http.HandlerFunc {
 			w.Write([]byte("invalid token"))
 			return
 		}
-		u, err := q.GetWorkspaceUser(r.Context(), int32(claims.WSUserID))
+		u, err := q.GetUser(r.Context(), model.GetUserParams{
+			SpaceID:    claims.SpaceId,
+			IdentityID: claims.ID,
+		})
 		if err != nil {
 			if err == sql.ErrNoRows {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -44,9 +47,9 @@ func Handle(q *model.Queries, key string, h http.Handler) http.HandlerFunc {
 			w.Write([]byte(errors.Wrap(err, "query error").Error()))
 			return
 		}
-		h.ServeHTTP(w, RequestWithIdentity(r, Identity{
-			UserID:      int(u.UserID),
-			WorkspaceID: int(u.WorkspaceID),
+		h.ServeHTTP(w, RequestWithUser(r, User{
+			SpaceID: u.SpaceID,
+			ID:      u.IdentityID,
 		}))
 	}
 }

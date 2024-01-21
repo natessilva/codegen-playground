@@ -39,14 +39,14 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 	defer tx.Rollback()
 	q := s.q.WithTx(tx)
 
-	workspaceID, err := q.CreateWorkspace(ctx, "")
+	spaceID, err := q.CreateSpace(ctx, "")
 	if err != nil {
-		return AuthOutput{}, errors.Wrap(err, "create workspace")
+		return AuthOutput{}, errors.Wrap(err, "create Space")
 	}
-	userID, err := q.CreateUser(ctx, model.CreateUserParams{
-		Email:              i.Email,
-		PasswordHash:       hash,
-		CurrentWorkspaceID: workspaceID,
+	id, err := q.CreateIdentity(ctx, model.CreateIdentityParams{
+		Email:          i.Email,
+		PasswordHash:   hash,
+		CurrentSpaceID: spaceID,
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -56,14 +56,14 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 		}
 		return AuthOutput{}, errors.Wrap(err, "create user")
 	}
-	wsuserID, err := q.CreateWorkspaceUser(ctx, model.CreateWorkspaceUserParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
+	err = q.CreateUser(ctx, model.CreateUserParams{
+		SpaceID:    spaceID,
+		IdentityID: id,
 	})
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "attach user")
 	}
-	t, err := GetTokenForUser(s.signingKey, int(wsuserID), time.Hour*2)
+	t, err := GetTokenForUser(s.signingKey, spaceID, id, time.Hour*2)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signtoken")
 	}
@@ -84,7 +84,7 @@ func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
 	}
 	defer tx.Rollback()
 	q := s.q.WithTx(tx)
-	user, err := q.GetUserByEmail(ctx, i.Email)
+	identity, err := q.GetIdentityByEmail(ctx, i.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return AuthOutput{
@@ -93,20 +93,20 @@ func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
 		}
 		return AuthOutput{}, errors.Wrap(err, "query error")
 	}
-	err = bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(i.Password))
+	err = bcrypt.CompareHashAndPassword(identity.PasswordHash, []byte(i.Password))
 	if err != nil {
 		return AuthOutput{
 			OK: false,
 		}, nil
 	}
-	wsUserID, err := q.GetWorkspaceUserId(ctx, model.GetWorkspaceUserIdParams{
-		WorkspaceID: user.CurrentWorkspaceID,
-		UserID:      user.ID,
+	user, err := q.GetUser(ctx, model.GetUserParams{
+		SpaceID:    identity.CurrentSpaceID.Int32,
+		IdentityID: identity.ID,
 	})
 	if err != nil {
-		return AuthOutput{}, errors.Wrap(err, "get workspace user")
+		return AuthOutput{}, errors.Wrap(err, "get Space user")
 	}
-	t, err := GetTokenForUser(s.signingKey, int(wsUserID), time.Hour*24*30)
+	t, err := GetTokenForUser(s.signingKey, user.SpaceID, user.IdentityID, time.Hour*24*30)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signing token")
 	}
