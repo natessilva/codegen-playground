@@ -3,9 +3,10 @@ package authn
 import (
 	"codegen/app/db/model"
 	"context"
-	"database/sql"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,10 +16,10 @@ const BcryptCost = 10
 type Service struct {
 	signingKey string
 	q          *model.Queries
-	db         *sql.DB
+	db         *pgxpool.Pool
 }
 
-func NewService(q *model.Queries, db *sql.DB, signingKey string) *Service {
+func NewService(q *model.Queries, db *pgxpool.Pool, signingKey string) *Service {
 	return &Service{
 		signingKey: signingKey,
 		q:          q,
@@ -32,11 +33,11 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 		return AuthOutput{}, errors.Wrap(err, "hashing error")
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "tx begin")
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 	q := s.q.WithTx(tx)
 
 	spaceID, err := q.CreateSpace(ctx, "")
@@ -49,7 +50,7 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 		CurrentSpaceID: spaceID,
 	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return AuthOutput{
 				OK: false,
 			}, nil
@@ -67,7 +68,7 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "signtoken")
 	}
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		return AuthOutput{}, errors.Wrap(err, "commit")
 	}
@@ -78,15 +79,9 @@ func (s *Service) Signup(ctx context.Context, i AuthInput) (AuthOutput, error) {
 }
 
 func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	identity, err := s.q.GetIdentityByEmail(ctx, i.Email)
 	if err != nil {
-		return AuthOutput{}, errors.Wrap(err, "begin")
-	}
-	defer tx.Rollback()
-	q := s.q.WithTx(tx)
-	identity, err := q.GetIdentityByEmail(ctx, i.Email)
-	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return AuthOutput{
 				OK: false,
 			}, nil
@@ -99,12 +94,12 @@ func (s *Service) Login(ctx context.Context, i AuthInput) (AuthOutput, error) {
 			OK: false,
 		}, nil
 	}
-	user, err := q.GetUser(ctx, model.GetUserParams{
+	user, err := s.q.GetUser(ctx, model.GetUserParams{
 		SpaceID:    identity.CurrentSpaceID.Int32,
 		IdentityID: identity.ID,
 	})
 	if err != nil {
-		return AuthOutput{}, errors.Wrap(err, "get Space user")
+		return AuthOutput{}, errors.Wrap(err, "get user")
 	}
 	t, err := GetTokenForUser(s.signingKey, user.SpaceID, user.IdentityID, time.Hour*24*30)
 	if err != nil {

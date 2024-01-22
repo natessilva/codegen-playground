@@ -3,21 +3,23 @@ package space
 import (
 	"codegen/app/pkg/app"
 	"codegen/app/pkg/authn"
+	"codegen/app/pkg/slices"
 	"context"
-	"database/sql"
 
 	"codegen/app/db/model"
 
 	"github.com/pkg/errors"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
 	q          *model.Queries
-	db         *sql.DB
+	db         *pgxpool.Pool
 	signingKey string
 }
 
-func NewService(q *model.Queries, db *sql.DB, signingKey string) *Service {
+func NewService(q *model.Queries, db *pgxpool.Pool, signingKey string) *Service {
 	return &Service{
 		q:          q,
 		db:         db,
@@ -70,16 +72,10 @@ func (s *Service) List(ctx context.Context, i app.Empty) (app.ListSpacesResponse
 		return app.ListSpacesResponse{}, err
 	}
 	return app.ListSpacesResponse{
-		Spaces: ToAppSpace(spaces),
+		Spaces: slices.Map(spaces, func(s model.Space) app.Space {
+			return app.Space{
+				Name: s.Name,
+			}
+		}),
 	}, nil
-}
-
-func ToAppSpace(modelSpaces []model.Space) []app.Space {
-	appSpaces := make([]app.Space, 0, len(modelSpaces))
-	for _, s := range modelSpaces {
-		appSpaces = append(appSpaces, app.Space{
-			Name: s.Name,
-		})
-	}
-	return appSpaces
 }

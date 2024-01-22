@@ -1,7 +1,10 @@
-version: 1
-packages:
-  - path: "db/model"
-    name: "model"
-    engine: "postgresql"
-    schema: "db/migrations/"
-    queries: "db/queries/"
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/queries"
+    schema: "db/migrations"
+    gen:
+      go:
+        package: "model"
+        out: "db/model"
+        sql_package: "pgx/v5"

@@ -4,20 +4,22 @@ import (
 	"codegen/app/pkg/app"
 	"codegen/app/pkg/authn"
 	"context"
-	"database/sql"
 	"strings"
 
 	"codegen/app/db/model"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/pkg/errors"
 )
 
 type Service struct {
 	q  *model.Queries
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewService(q *model.Queries, db *sql.DB) *Service {
+func NewService(q *model.Queries, db *pgxpool.Pool) *Service {
 	return &Service{
 		q:  q,
 		db: db,
@@ -45,7 +47,7 @@ func (s *Service) Get(ctx context.Context, i app.ID) (app.GetTicketResponse, err
 		SpaceID: user.SpaceID,
 		ID:      i.ID,
 	})
-	if err == sql.ErrNoRows {
+	if err == pgx.ErrNoRows {
 		return app.GetTicketResponse{
 			OK: false,
 		}, nil
@@ -73,10 +75,7 @@ func (s *Service) Update(ctx context.Context, i app.UpdateTicketInput) (app.OK, 
 	if err != nil {
 		return app.OK{}, errors.Wrap(err, "query error")
 	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return app.OK{}, errors.Wrap(err, "rows affected error")
-	}
+	rows := result.RowsAffected()
 	return app.OK{
 		OK: rows == 1,
 	}, nil

@@ -1,12 +1,7 @@
 node_modules/
-pkg/*/server_gen.go
 db/docker/data
 db/docker/test-data
 db/docker/test.tar
-db/model
 main
 server
 gen
-client/src/lib/*/client_gen.ts
-/gen
-/server

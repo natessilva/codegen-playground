@@ -2,11 +2,11 @@ package authn
 
 import (
 	"codegen/app/db/model"
-	"database/sql"
 	"net/http"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
 
@@ -38,7 +38,7 @@ func Handle(q *model.Queries, key string, h http.Handler) http.HandlerFunc {
 			IdentityID: claims.ID,
 		})
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if err == pgx.ErrNoRows {
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("invalid token"))
 				return

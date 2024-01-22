@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +16,7 @@ import (
 	"codegen/app/pkg/app/user"
 	"codegen/app/pkg/authn"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 //go:generate ./generate.sh
@@ -26,7 +25,8 @@ import (
 const jwtKey = "secret key"
 
 func main() {
-	db, err := sql.Open("postgres", "sslmode=disable")
+	db, err := pgxpool.New(context.Background(), "")
+	// db, err := sql.Open("postgres", "sslmode=disable")
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
