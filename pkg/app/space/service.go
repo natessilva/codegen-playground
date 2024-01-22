@@ -62,3 +62,24 @@ func (s *Service) GetUsers(ctx context.Context, i app.Empty) (app.GetUsersRespon
 		Users: users,
 	}, nil
 }
+
+func (s *Service) List(ctx context.Context, i app.Empty) (app.ListSpacesResponse, error) {
+	user := authn.UserFromFromContext(ctx)
+	spaces, err := s.q.ListSpaces(ctx, user.ID)
+	if err != nil {
+		return app.ListSpacesResponse{}, err
+	}
+	return app.ListSpacesResponse{
+		Spaces: ToAppSpace(spaces),
+	}, nil
+}
+
+func ToAppSpace(modelSpaces []model.Space) []app.Space {
+	appSpaces := make([]app.Space, 0, len(modelSpaces))
+	for _, s := range modelSpaces {
+		appSpaces = append(appSpaces, app.Space{
+			Name: s.Name,
+		})
+	}
+	return appSpaces
+}

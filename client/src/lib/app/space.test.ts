@@ -18,6 +18,10 @@ describe("a user", () => {
     await space.update({ name: "custom name" });
     const { name: updatedName } = await space.get({});
     expect(updatedName).toEqual("custom name");
+
+    const { spaces } = await space.list({});
+    expect(spaces).toHaveLength(1);
+    expect(spaces[0]).toEqual({ name: "custom name" });
   });
 
   it("can get users in space", async () => {

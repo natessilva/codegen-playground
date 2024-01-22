@@ -62,15 +62,24 @@ func (s *Service) Get(ctx context.Context, i app.ID) (app.GetTicketResponse, err
 	}, nil
 }
 
-func (s *Service) Update(ctx context.Context, i app.UpdateTicketInput) (app.Empty, error) {
+func (s *Service) Update(ctx context.Context, i app.UpdateTicketInput) (app.OK, error) {
 	user := authn.UserFromFromContext(ctx)
-	err := s.q.UpdateTicket(ctx, model.UpdateTicketParams(model.UpdateTicketParams{
+	result, err := s.q.UpdateTicket(ctx, model.UpdateTicketParams(model.UpdateTicketParams{
 		SpaceID: user.SpaceID,
 		ID:      i.ID,
 		Subject: i.Subject,
 		Body:    i.Body,
 	}))
-	return app.Empty{}, err
+	if err != nil {
+		return app.OK{}, errors.Wrap(err, "query error")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return app.OK{}, errors.Wrap(err, "rows affected error")
+	}
+	return app.OK{
+		OK: rows == 1,
+	}, nil
 }
 
 func (s *Service) Assign(ctx context.Context, i app.AssignInput) (app.OK, error) {

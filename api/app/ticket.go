@@ -3,7 +3,7 @@ package app
 type TicketService interface {
 	Create(Ticket) ID
 	Get(ID) GetTicketResponse
-	Update(UpdateTicketInput) Empty
+	Update(UpdateTicketInput) OK
 	Assign(AssignInput) OK
 	AssignSelf(ID) OK
 }

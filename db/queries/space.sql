@@ -13,3 +13,9 @@ where id = $1;
 update space
 set name = $2
 where id = $1;
+
+-- name: ListSpaces :many
+select s.*
+from "user" u
+join space s on u.space_id = s.id
+where u.identity_id = @identity_id;

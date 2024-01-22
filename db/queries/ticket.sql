@@ -9,7 +9,7 @@ from ticket
 where space_id = @space_id
 and id = @id;
 
--- name: UpdateTicket :exec
+-- name: UpdateTicket :execresult
 update ticket set
 subject = @subject,
 body = @body

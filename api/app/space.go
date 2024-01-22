@@ -4,10 +4,15 @@ type SpaceService interface {
 	Get(Empty) Space
 	Update(Space) Empty
 	GetUsers(Empty) GetUsersResponse
+	List(Empty) ListSpacesResponse
 }
 
 type Space struct {
 	Name string
+}
+
+type ListSpacesResponse struct {
+	Spaces []Space
 }
 
 type GetUsersResponse struct {
